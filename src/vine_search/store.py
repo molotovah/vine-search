@@ -11,8 +11,8 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
+from .amazon import vine_path
 from .config import MARKETPLACE, ORIGIN
 from .matching import normalized, rank_all, rank_product
 from .models import (
@@ -430,7 +430,7 @@ class Store:
                 db.execute("SELECT * FROM products WHERE id=?", (product_id,)).fetchone()
             )
             observed_url = safe_amazon_url(detail_product["vine_url"])
-            if not observed_url or urlparse(observed_url).path.rstrip("/") != "/vine/vine-items":
+            if not observed_url or vine_path(observed_url).rstrip("/") != "/vine/vine-items":
                 raise ValueError("Refresh this item in Discover before requesting Vine details")
         existing = db.execute(
             (
@@ -1521,6 +1521,8 @@ class Store:
                     "awaiting_review",
                     "pas encore examiné",
                     "en attente d'avis",
+                    "rejeté",
+                    "non approuvé",
                 }:
                     continue
                 age = record["age_days"]

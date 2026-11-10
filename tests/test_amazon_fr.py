@@ -50,3 +50,24 @@ def test_french_etv_and_unavailable() -> None:
     assert details["etv"] == "1 234,56 €"
     gone = amazon.parse_product_details("<p>Actuellement indisponible.</p>", product, product_id=1)
     assert gone["state"] == "unavailable"
+
+
+def test_language_prefixed_pagination_and_item_count() -> None:
+    """amazon.fr in English serves /-/en/ links and 'N item(s) matching' totals."""
+    html = """<div id="vvp-items-grid-container"><p>113 article(s) correspondant à « lampe »</p>
+    <div id="vvp-items-grid"><div class="vvp-item-tile" data-asin="B0DLWRSC4T">
+      <div class="vvp-item-product-title-container"><a href="/dp/B0DLWRSC4T">
+        <span class="a-truncate-full">Clips</span></a></div></div></div>
+    <ul class="a-pagination"><li class="a-last">
+      <a href="/-/en/vine/vine-items?queue=encore&pn=&cn=&page=2&search=lampe">Suivant</a>
+    </li></ul></div>"""
+    page = amazon.parse_catalog(html, f"{FR}/vine/vine-items?queue=encore&search=lampe")
+    assert page.state == "ok", page.message
+    assert page.next_url == f"{FR}/-/en/vine/vine-items?queue=encore&pn=&cn=&page=2&search=lampe"
+    assert page.advertised_count == 113
+    assert amazon.vine_path(page.next_url) == "/vine/vine-items"
+
+
+def test_french_details_heading() -> None:
+    assert amazon.DETAILS_HEADING.search("Détails de l'article")
+    assert amazon.DETAILS_BUTTON.match("Voir les détails")

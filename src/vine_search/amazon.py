@@ -38,7 +38,7 @@ UNAVAILABLE = (
     r"|Actuellement indisponible|n.est plus disponible"
 )
 DETAILS_BUTTON = re.compile(r"^(?:See details|Voir les d[ée]tails)$", re.I)
-DETAILS_HEADING = re.compile(r"Product Details|D[ée]tails (?:du|sur le) produit", re.I)
+DETAILS_HEADING = re.compile(r"Product Details|D[ée]tails de l.article", re.I)
 EMPTY_TEXT = ("aucun", "0 résultat", "il n'y a pas")
 QUEUES = {"rfy": "potluck", "afa": "last_chance", "search": "encore"}
 PRODUCT_CARDS = ".vvp-item-tile"
@@ -100,6 +100,11 @@ def amazon_url(value: str, base: str = ORIGIN) -> str | None:
     return candidate
 
 
+def vine_path(url: str) -> str:
+    """URL path without Amazon's language prefix (/-/en/, /-/fr/) used on amazon.fr."""
+    return re.sub(r"^/-/[a-z]{2}(?:[_-][a-z]{2})?(?=/)", "", urlparse(url).path, flags=re.I)
+
+
 def image_url(value: str) -> str | None:
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.hostname:
@@ -125,7 +130,7 @@ def queue_url(kind: str, query: str = "") -> str:
 
 def signed_in_vine(html: str, url: str) -> bool:
     """Require actual Amazon host, Vine path, and authenticated Vine content."""
-    if not amazon_url(url) or not urlparse(url).path.startswith("/vine/"):
+    if not amazon_url(url) or not vine_path(url).startswith("/vine/"):
         return False
     soup = BeautifulSoup(html, "html.parser")
     if _auth_state(soup, url):
@@ -159,7 +164,7 @@ def _auth_state(soup: BeautifulSoup, url: str) -> str | None:
 
 
 def _page_state(soup: BeautifulSoup, url: str) -> str | None:
-    if not amazon_url(url) or not urlparse(url).path.startswith("/vine/"):
+    if not amazon_url(url) or not vine_path(url).startswith("/vine/"):
         return "needs_login" if _auth_state(soup, url) else "invalid_host"
     return _auth_state(soup, url)
 
@@ -175,7 +180,7 @@ def _next(soup: BeautifulSoup, url: str) -> str | None:
     if candidate is None:
         raise ValueError("Pagination left the Amazon Vine origin")
     old, new = urlparse(url), urlparse(candidate)
-    if old.path != new.path:
+    if vine_path(url) != vine_path(candidate):
         raise ValueError("Pagination changed the Vine section")
     old_query, new_query = parse_qs(old.query), parse_qs(new.query)
     for key in ("queue", "search", "review-type"):
@@ -193,6 +198,8 @@ def _count(soup: BeautifulSoup) -> int | None:
         text,
         re.I,
     )
+    if match is None:
+        match = re.search(r"(\d[\d,.\s\u202f\u00a0]*?)\s+(?:item|article)\(s\)", text, re.I)
     return int(re.sub(r"\D", "", match.group(1))) if match else None
 
 
@@ -311,7 +318,7 @@ def review_sections(html: str, url: str) -> dict[str, str]:
     for link in soup.select("a[href]"):
         label = clean(link.get_text(" ", strip=True)).lower()
         href = amazon_url(str(link.get("href")), url)
-        if href is None or urlparse(href).path != "/vine/vine-reviews":
+        if href is None or vine_path(href) != "/vine/vine-reviews":
             continue
         review_type = parse_qs(urlparse(href).query).get("review-type", [""])[0]
         if review_type == "pending_review" or any(
@@ -446,7 +453,7 @@ def parse_reviews(html: str, url: str, section: str) -> ParsedPage:
 
 
 async def load_page(page: Any, url: str) -> tuple[str, str]:
-    if not amazon_url(url) or not urlparse(url).path.startswith("/vine/"):
+    if not amazon_url(url) or not vine_path(url).startswith("/vine/"):
         raise ValueError("Only observed Amazon Vine pages may be collected")
     await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
     # Parse actual error documents when the expected selectors never appear.
@@ -567,7 +574,7 @@ async def lookup_details(page: Any, payload: dict[str, Any], *, progress: Any = 
     if (
         not ASIN.fullmatch(asin)
         or not amazon_url(url)
-        or urlparse(url).path.rstrip("/") != "/vine/vine-items"
+        or vine_path(url).rstrip("/") != "/vine/vine-items"
     ):
         scan.error = "Product details require a saved Amazon Vine listing."
         return scan
