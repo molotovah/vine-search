@@ -8,7 +8,7 @@
  *
  * Catalog keys (static/locales/<lang>.js):
  *   "Sync reviews"            exact text of an element, an attribute
- *                             (placeholder, aria-label, title, alt) or a toast
+ *                             (placeholder, aria-label, title) or a toast
  *   "Seen {when}"             a pattern; each {name} matches text within one
  *                             sentence, itself translated when the catalog
  *                             knows it; {n} matches only a number
@@ -115,7 +115,7 @@
   }
 
   const SKIP = new Set(["SCRIPT", "STYLE", "TEXTAREA", "CODE", "PRE"]);
-  const ATTRIBUTES = ["placeholder", "aria-label", "title", "alt"];
+  const ATTRIBUTES = ["placeholder", "aria-label", "title"];
   const done = new WeakMap();
   const excluded = (element) =>
     !element ||

@@ -444,6 +444,7 @@ window.VINE_LOCALES.fr = {
     "Pending approval": "En attente d’approbation",
     "Approved": "Approuvé",
     "Rejected": "Rejeté",
+    "Not approved": "Non approuvé",
     "Local progress": "Progression locale",
     "All local progress": "Toute progression locale",
     "Not started": "Non commencé",

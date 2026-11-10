@@ -24,7 +24,7 @@ def catalog(language: str) -> dict[str, str]:
 
 WORD = re.compile(r"[A-Za-z\u2019']+")
 # Text Amazon shows (observed review statuses) rather than application text.
-AMAZON_TEXT = {"Pending approval"}
+AMAZON_TEXT = {"Pending approval", "Not approved"}
 
 
 def english_words() -> set[str]:
